@@ -23,6 +23,9 @@ public class ProductJpaEntity {
     @Column(name = "short_description")
     private String shortDescription;
 
+    @Column(name = "category")
+    private String category;
+
     @Column(name = "price", nullable = false)
     private BigDecimal price;
 
@@ -47,6 +50,7 @@ public class ProductJpaEntity {
             String productName,
             String description,
             String shortDescription,
+            String category,
             BigDecimal price,
             String imageUrl,
             Integer stockQuantity,
@@ -57,6 +61,7 @@ public class ProductJpaEntity {
         this.productName = productName;
         this.description = description;
         this.shortDescription = shortDescription;
+        this.category = category;
         this.price = price;
         this.imageUrl = imageUrl;
         this.stockQuantity = stockQuantity;
@@ -71,6 +76,10 @@ public class ProductJpaEntity {
     public String getDescription() { return description; }
 
     public String getShortDescription() { return shortDescription; }
+
+    public String getCategory() {
+        return category;
+    }
 
     public BigDecimal getPrice() { return price; }
 

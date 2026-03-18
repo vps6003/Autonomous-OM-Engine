@@ -1,5 +1,6 @@
 package com.vps.omengine.application.product.service;
 
+import com.vps.omengine.application.product.dto.ProductResponse;
 import com.vps.omengine.application.product.port.in.GetProductUseCase;
 import com.vps.omengine.application.product.port.out.ProductRepository;
 import com.vps.omengine.domain.product.Product;
@@ -18,16 +19,36 @@ public class GetProductService implements GetProductUseCase {
     }
 
     @Override
-    public Product getProduct(UUID productId){
+    public ProductResponse getProduct(UUID productId){
         // fetch product from persistence layer
-        return productRepository.findById(productId)
+        Product product = productRepository.findById(productId)
                 .orElseThrow(() ->
                         new IllegalArgumentException("Product not found : "+ productId)
                 );
+
+        return mapToResponse(product);
     }
 
     @Override
-    public List<Product> getProducts(Integer page, Integer size){
-        return productRepository.findAll(page,size);
+    public List<ProductResponse> getProducts(Integer page, Integer size){
+        return productRepository.findAll(page, size)
+                .stream()
+                .map(this::mapToResponse)
+                .toList();
+    }
+
+    private ProductResponse mapToResponse(Product product) {
+        return new ProductResponse(
+                product.getProductId(),
+                product.getProductName(),
+                product.getDescription(),
+                product.getShortDescription(),
+                product.getCategory(),
+                product.getPrice(),
+                product.getStockQuantity(),
+                product.getImageUrl(),
+                product.getCreatedAt(),
+                product.getUpdatedAt()
+        );
     }
 }

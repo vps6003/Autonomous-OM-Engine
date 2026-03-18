@@ -1,5 +1,6 @@
 package com.vps.omengine.adapter.web.order;
 
+import com.vps.omengine.application.order.dto.OrderResponse;
 import com.vps.omengine.application.order.port.in.CreateOrderCommand;
 import com.vps.omengine.application.order.port.in.CreateOrderUseCase;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +21,7 @@ public class OrderController {
     }
 
     @PostMapping
-    public UUID createOrder(@RequestBody CreateOrderCommand command){
+    public OrderResponse createOrder(@RequestBody CreateOrderCommand command){
         return createOrderUseCase.createOrder(command);
     }
 }

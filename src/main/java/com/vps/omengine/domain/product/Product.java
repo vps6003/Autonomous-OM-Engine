@@ -11,6 +11,7 @@
         private String productName;
         private String description;
         private String shortDescription;
+        private String category;
 
         private BigDecimal price;
 
@@ -26,6 +27,7 @@
                 String productName,
                 String description,
                 String shortDescription,
+                String category,
                 BigDecimal price,
                 String imageUrl,
                 Integer stockQuantity,
@@ -54,6 +56,7 @@
             this.productName = productName;
             this.shortDescription = shortDescription;
             this.description = description;
+            this.category = category;
             this.price = price;
             this.stockQuantity = stockQuantity;
             this.imageUrl = imageUrl;
@@ -77,6 +80,8 @@
         public String getDescription() {
             return description;
         }
+
+        public String getCategory() { return category;}
 
         public BigDecimal getPrice() {
             return price;
@@ -140,6 +145,7 @@
                 String productName,
                 String description,
                 String shortDescription,
+                String category,
                 BigDecimal price,
                 String imageUrl,
                 Integer stockQuantity
@@ -151,6 +157,7 @@
                     productName,
                     description,
                     shortDescription,
+                    category,
                     price,
                     imageUrl,
                     stockQuantity,
@@ -163,6 +170,7 @@
                 String productName,
                 String description,
                 String shortDescription,
+                String category,
                 BigDecimal price,
                 String imageUrl,
                 Integer stockQuantity,
@@ -174,6 +182,7 @@
                     productName,
                     description,
                     shortDescription,
+                    category,
                     price,
                     imageUrl,
                     stockQuantity,
