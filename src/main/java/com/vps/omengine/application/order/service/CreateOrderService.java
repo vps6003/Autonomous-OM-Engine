@@ -1,5 +1,6 @@
 package com.vps.omengine.application.order.service;
 
+import com.vps.omengine.application.order.dto.OrderResponse;
 import com.vps.omengine.application.order.port.in.CreateOrderCommand;
 import com.vps.omengine.application.order.port.in.CreateOrderUseCase;
 import com.vps.omengine.application.order.port.out.OrderRepository;
@@ -14,112 +15,94 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/*
-Application Service (Use Case Implementation) for creating an order.
-This Class (Service) implements the CreateOrderUseCase interface (port in).
-
-Responsibilities :
-- Orchestrate the use case (creation of an order by interacting with the OrderRepository (port out)).
-- Convert input DtOs -> Domain objects and vice versa.
-- Call Domain logic (e.g., Order.create()) to perform the actual creation of the order.
-- Persist aggregates through  ports (e.g., OrderRepository) and return results (e.g., order ID).
-
-Important Rule :
-Application Services should not contain business logic.
-They should delegate to the Domain Model (e.g. Order entity) for any businsess rules or invariants.
-Business rules belongs inside the Domain Layer ( Order Aggreagate, Domain Services , etc).
-
-
-* */
 @Service
 public class CreateOrderService implements CreateOrderUseCase {
 
-    /*
-      Output port dependency,
-
-      The application layer depends on an interface (port) to interact with the persistence layer (e.g., OrderRepository),
-      not a concrete database implementation.
-
-      The acutal implementation will live in :
-      adapter/persistence/JpaOrderRepository (or any other persistence technology) and will be injected
-      into this service (q.g. via constructor injection) by the framework (e.g., Spring).
-    */
-
     private final OrderRepository orderRepository;
-
     private final ProductRepository productRepository;
-
-    /*
-     Constructor injection.
-
-     The persistence adapter will provide the implementation
-     of the OrderRepository when the application starts.
-     */
 
     public CreateOrderService(
             OrderRepository orderRepository,
             ProductRepository productRepository
-            ){
+    ){
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
     }
 
-    /*
-    Main use case method.
-
-    Flow :
-    1. Recieve command from controller
-    2. Convert commmand Dto -> domain objects
-    3. Create domain aggregate
-    4. Persist aggregate through repository
-    5. Return generated Order ID
-     */
-
     @Transactional
     @Override
-    public UUID createOrder(CreateOrderCommand command){
-          // Convert the incoming command  items into Domain Orderline Objects.
-          //  Create Command is a DTO (application layer)
-          // OrderLine is a Domain Object.
+    public OrderResponse createOrder(CreateOrderCommand command){
+
+        // 🔹 Step 1: Convert items → OrderLines (via helper method)
         List<OrderLine> lines = command.items()
                 .stream()
-                .map(item ->{
-                        // 1. Fetch Product
-                        Product product = productRepository.findById(item.productId())
-                                .orElseThrow(() ->
-                                        new RuntimeException("Product not found" + item.productId()));
-
-                        // 2. Validate Stock
-                        if(!product.isInStock(item.quantity())){
-                            throw  new RuntimeException("Insufficient stock for product :" + item.productId());
-                        }
-
-                        // 3. Reduce Stock
-                        product.decreaseStock(item.quantity());
-
-                        // 4. save updated product
-                         productRepository.save(product);
-
-                     return   OrderLine.create(
-                        item.productId(),
-                        item.quantity(),
-                        item.price()
-                );
-                })
+                .map(this::processOrderItem)   // 👈 clean delegation
                 .collect(Collectors.toList());
 
-        // Create the Order Aggregaate using the domain factory.
-
-        // Important :
-        // Domain rules like validation , total calculation and state initialization
-        // happen inside the Order.create()
-
+        // 🔹 Step 2: Create Order aggregate
         Order order  = Order.create(command.customerId(), lines);
 
-        // Persist the order aggregate through the output port.
-
+        // 🔹 Step 3: Persist Order
         orderRepository.save(order);
 
-        return order.getOrderId();
+        return mapToResponse(order);
+    }
+
+    /**
+     * 🔹 Helper method (kept INSIDE SAME CLASS)
+     * Handles:
+     * - Product fetch
+     * - Stock validation
+     * - Stock deduction
+     * - OrderLine creation
+     */
+    private OrderLine processOrderItem(CreateOrderCommand.OrderItem item) {
+
+        // 1. Fetch product
+        Product product = productRepository.findById(item.productId())
+                .orElseThrow(() ->
+                        new RuntimeException("Product not found: " + item.productId())
+                );
+
+        // 2. Validate stock
+        if (!product.isInStock(item.quantity())) {
+            throw new RuntimeException(
+                    "Insufficient stock for product: " + item.productId()
+            );
+        }
+
+        // 3. Deduct stock
+        product.decreaseStock(item.quantity());
+
+        // 4. Persist updated product
+        productRepository.save(product);
+
+        // 5. Create OrderLine using product price (NOT request price)
+        return OrderLine.create(
+                item.productId(),
+                item.quantity(),
+                product.getPrice()
+        );
+    }
+    private OrderResponse mapToResponse(Order order) {
+
+        List<OrderResponse.OrderLineResponse> items =
+                order.getOrderLines().stream()
+                        .map(line -> new OrderResponse.OrderLineResponse(
+                                line.getProductId(),
+                                line.getQuantity(),
+                                line.getPrice(),
+                                line.getSubtotal()
+                        ))
+                        .toList();
+
+        return new OrderResponse(
+                order.getOrderId(),
+                order.getCustomerId(),
+                items,
+                order.getTotalAmount(),
+                order.getStatus().name(),
+                order.getCreatedAt()
+        );
     }
 }

@@ -1,9 +1,10 @@
 package com.vps.omengine.adapter.web.product;
 
+import com.vps.omengine.application.product.dto.ProductResponse;
 import com.vps.omengine.application.product.port.in.CreateProductUseCase;
 import com.vps.omengine.application.product.port.in.GetProductUseCase;
 
-import com.vps.omengine.domain.product.Product;
+
 
 import org.springframework.web.bind.annotation.*;
 
@@ -18,25 +19,23 @@ public class ProductController {
     // input ports of application layer
     private final CreateProductUseCase createProductUseCase;
     private final GetProductUseCase getProductUseCase;
-    private final GetProductUseCase getProductsUseCase;
 
     // spring injects the service implementations automatically
     public ProductController(
             CreateProductUseCase createProductUseCase,
-            GetProductUseCase getProductUseCase,
-            GetProductUseCase getProductsUseCase
+            GetProductUseCase getProductUseCase
     ) {
         this.createProductUseCase = createProductUseCase;
         this.getProductUseCase = getProductUseCase;
-        this.getProductsUseCase = getProductsUseCase;
     }
 
     // HTTP POST endpoint to create a product
     @PostMapping
-    public Product createProduct(
+    public ProductResponse createProduct(
             @RequestParam String productName,
             @RequestParam String description,
             @RequestParam String shortDescription,
+            @RequestParam String category,
             @RequestParam BigDecimal price,
             @RequestParam String imageUrl,
             @RequestParam Integer stockQuantity
@@ -47,6 +46,7 @@ public class ProductController {
                 productName,
                 description,
                 shortDescription,
+                category,
                 price,
                 imageUrl,
                 stockQuantity
@@ -55,18 +55,18 @@ public class ProductController {
 
     // HTTP GET endpoint to fetch product by id
     @GetMapping("/{productId}")
-    public Product getProduct(@PathVariable UUID productId) {
+    public ProductResponse getProduct(@PathVariable UUID productId) {
 
         return getProductUseCase.getProduct(productId);
     }
 
     // HTTP GET endpoint for paginated product list
     @GetMapping
-    public List<Product> getProducts(
+    public List<ProductResponse> getProducts(
             @RequestParam(defaultValue = "0") Integer page,
             @RequestParam(defaultValue = "10") Integer size
     ) {
 
-        return getProductsUseCase.getProducts(page, size);
+        return getProductUseCase.getProducts(page, size);
     }
 }
