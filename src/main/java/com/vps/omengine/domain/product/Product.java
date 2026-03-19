@@ -191,6 +191,11 @@
             );
         }
 
+        @Override
+        public String toString() {
+            return " \n { \n Product{id=%s, productName='%s', category='%s', price=%s, stock=%d \n}".formatted( productId,productName, category,  price, stockQuantity);
+        }
+
 
 
     }

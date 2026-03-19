@@ -16,4 +16,6 @@ public interface ProductRepository {
 
     void deleteById(UUID productId);
 
+    List<Product> searchByName(String name);
+
 }
