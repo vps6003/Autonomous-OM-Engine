@@ -54,4 +54,14 @@ public  class ProductPersistenceAdapter implements ProductRepository {
     public void deleteById(UUID productId) {
         springDataproductRepository.deleteById(productId);
     }
+
+    @Override
+    public List<Product> searchByName(String name) {
+
+        return springDataproductRepository
+                .findByProductNameContainingIgnoreCase(name)
+                .stream()
+                .map(ProductMapper::toDomain)
+                .toList();
+    }
 }
