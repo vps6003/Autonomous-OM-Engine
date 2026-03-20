@@ -7,8 +7,8 @@ import com.vps.omengine.application.product.port.out.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -18,59 +18,75 @@ public class ToolExecutor {
     private final ProductRepository productRepository;
     private final CreateOrderService orderService;
 
-    public String execute(String tool, JsonNode input) {
+    public Object execute(String tool, JsonNode input) {
 
         switch (tool) {
-
             case "search_products" -> {
-                String query = input.asText();
 
-                return "PRODUCT_SEARCH_RESULT: " +
-                        productRepository.searchByName(query)
-                                .stream()
-                                .map(p -> """
-                                        {
-                                          "productId": "%s",
-                                          "name": "%s",
-                                          "price": %s,
-                                          "stock": %s
-                                        }
-                                        """.formatted(
-                                        p.getProductId(),
-                                        p.getProductName(),
-                                        p.getPrice(),
-                                        p.getStockQuantity()
-                                ))
-                                .toList();
+                String query = input.get("query").asText()
+                        .toLowerCase()
+                        .trim();
+
+                // ✅ remove numbers (iphone 16 → iphone)
+                query = query.replaceAll("\\d+", "").trim();
+
+                // ✅ plural normalization
+                if (query.endsWith("es")) {
+                    query = query.substring(0, query.length() - 2);
+                } else if (query.endsWith("s")) {
+                    query = query.substring(0, query.length() - 1);
+                }
+
+                System.out.println("FINAL SEARCH QUERY: " + query);
+
+                var products = productRepository.searchByName(query);
+
+                return Map.of(
+                        "type", "PRODUCT_SEARCH_RESULT",
+                        "data", products.stream().map(p -> Map.of(
+                                "productId", p.getProductId(),
+                                "name", p.getProductName(),
+                                "price", p.getPrice(),
+                                "stock", p.getStockQuantity()
+                        )).toList()
+                );
             }
-
             case "create_order" -> {
                 try {
 
                     UUID customerId = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-                    List<CreateOrderCommand.OrderItem> items = new ArrayList<>();
-
                     UUID productId = UUID.fromString(input.get("productId").asText());
                     int quantity = input.get("quantity").asInt();
 
-                    items.add(new CreateOrderCommand.OrderItem(productId, quantity, null));
-
-                    CreateOrderCommand command =
-                            new CreateOrderCommand(customerId, items);
+                    var command = new CreateOrderCommand(
+                            customerId,
+                            List.of(new CreateOrderCommand.OrderItem(productId, quantity, null))
+                    );
 
                     var response = orderService.createOrder(command);
 
-                    return "ORDER_SUCCESS: orderId=" + response.orderId()
-                            + ", total=" + response.totalAmount();
+                    return Map.of(
+                            "type", "ORDER_SUCCESS",
+                            "data", Map.of(
+                                    "orderId", response.orderId(),
+                                    "total", response.totalAmount()
+                            )
+                    );
 
                 } catch (Exception e) {
-                    return "ORDER_FAILED: " + e.getMessage();
+                    return Map.of(
+                            "type", "ORDER_FAILED",
+                            "message", e.getMessage()
+                    );
                 }
             }
 
             default -> {
-                return "Unknown tool: " + tool;
+                return Map.of(
+                        "type", "UNKNOWN_TOOL",
+                        "message", "Unknown tool: " + tool
+                );
             }
         }
     }

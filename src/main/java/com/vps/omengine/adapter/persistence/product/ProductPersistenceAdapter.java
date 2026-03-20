@@ -12,7 +12,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 
 @Component
-public  class ProductPersistenceAdapter implements ProductRepository {
+public class ProductPersistenceAdapter implements ProductRepository {
 
     private final SpringDataProductRepository springDataproductRepository;
 
@@ -57,10 +57,50 @@ public  class ProductPersistenceAdapter implements ProductRepository {
 
     @Override
     public List<Product> searchByName(String name) {
+
+        // ✅ normalize
         String query = name.toLowerCase().trim();
-        return springDataproductRepository
-                .searchFlexible(query)
-                .stream()
+
+        // ✅ remove numbers (iphone 16 → iphone)
+        query = query.replaceAll("\\d+", "").trim();
+        if (query.contains(" ")) {
+            query = query.split(" ")[0];
+        }
+
+        // ✅ plural normalization
+        if (query.endsWith("es")) {
+            query = query.substring(0, query.length() - 2);
+        } else if (query.endsWith("s")) {
+            query = query.substring(0, query.length() - 1);
+        }
+
+        System.out.println("FINAL QUERY: " + query);
+
+        // ✅ primary search
+        var results = springDataproductRepository.searchFlexible(query);
+
+        // 🔥 fallback (important)
+        if (results.isEmpty()) {
+
+            System.out.println("Fallback triggered for query: " + query);
+
+            // fallback: try broader keyword
+            if (query.contains("iphone")) {
+                results = springDataproductRepository.searchFlexible("iphone");
+            }
+
+            // generic fallback: first page
+            if (results.isEmpty()) {
+                results = springDataproductRepository.findAll(PageRequest.of(0, 5)).getContent();
+            }
+        }
+
+        // ✅ ranking (shorter name = better match)
+        return results.stream()
+                .sorted((a, b) -> Integer.compare(
+                        a.getProductName().length(),
+                        b.getProductName().length()
+                ))
                 .map(ProductMapper::toDomain)
                 .toList();
     }
