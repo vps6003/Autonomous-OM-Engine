@@ -14,8 +14,15 @@
         private final ProductRepository productRepository;
 
         public String execute(String input) {
+            String query = input.toLowerCase().trim();
 
-            List<Product> products = productRepository.searchByName(input);
+            if (query.endsWith("es")) {
+                query = query.substring(0, query.length() - 2);
+            } else if (query.endsWith("s")) {
+                query = query.substring(0, query.length() - 1);
+            }
+
+            List<Product> products = productRepository.searchByName(query);
 
             if (products.isEmpty()) {
                 return "No products found for query: " + input;

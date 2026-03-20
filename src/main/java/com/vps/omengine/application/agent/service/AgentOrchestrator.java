@@ -18,24 +18,25 @@ public class AgentOrchestrator {
 
     public String process(String userInput) {
 
-        try {
-            System.out.println("\n[Agent] Goal: " + userInput);
+        String context = userInput;
+        String observation = "";
 
-            String context = userInput;
-            String observation = "";
+        for (int step = 1; step <= 5; step++) {
 
-            // 🔥 AGENT LOOP
-            for (int step = 1; step <= 5; step++) {
-
-                System.out.println("\n[Agent] Step " + step);
+            try {
 
                 String llmOutput = llmClient.callAgent(context, observation);
-
                 JsonNode root = mapper.readTree(llmOutput);
 
                 String tool = root.get("tool").asText();
 
-                System.out.println("[Agent] Decision: " + tool);
+                // 🔥 HARD GUARD: invalid tool → STOP
+                if (!tool.equals("search_products") &&
+                        !tool.equals("create_order") &&
+                        !tool.equals("final_answer")) {
+
+                    return "Agent failed: invalid tool → " + tool;
+                }
 
                 // ✅ FINAL ANSWER
                 if ("final_answer".equals(tool)) {
@@ -45,17 +46,21 @@ public class AgentOrchestrator {
                 // 🔥 EXECUTE TOOL
                 observation = toolExecutor.execute(tool, root.get("input"));
 
-                System.out.println("[Agent] Observation: " + observation);
+                // 🔥 CRITICAL STOP CONDITION
+                if (observation.contains("ORDER_SUCCESS") ||
+                        observation.contains("ORDER_FAILED")) {
 
-                // 🔁 FEEDBACK LOOP
-                context = context + "\nObservation: " + observation;
+                    return observation;
+                }
+
+                context = userInput;
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                return "Agent failed: " + e.getMessage();
             }
-
-            return "Agent stopped after max steps";
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return "Agent failed: " + e.getMessage();
         }
+
+        return "Agent stopped after max steps";
     }
 }

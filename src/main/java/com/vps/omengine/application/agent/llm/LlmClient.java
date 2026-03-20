@@ -18,137 +18,70 @@ public class LlmClient {
 
     private static final String URL = "https://api.groq.com/openai/v1/chat/completions";
 
-    // 🔹 AGENT MODE (USED BY ORCHESTRATOR LOOP)
     public String callAgent(String context, String observation) {
 
         String systemPrompt = """
-You are an intelligent AI agent.
+                You are an AI agent.
+                
+                ========================
+                STRICT RULES
+                ========================
+                1. Return ONLY valid JSON.
+                2. No explanations.
+                3. Follow intent strictly.
+                
+                ========================
+                INTENT DETECTION
+                ========================
+                
+                If user wants to SEE or SEARCH product:
+                → ONLY call search_products
+                → NEVER call create_order
+                
+                If user wants to ORDER / BUY product:
+                → first call search_products
+                → then call create_order
+                
+                ========================
+                STATE LOGIC
+                ========================
+                
+                IF no observation:
+                → decide based on intent
+                
+                IF observation contains PRODUCT_SEARCH_RESULT:
+                → ONLY call create_order IF intent = ORDER
+                → ELSE return final_answer
+                
+                IF observation contains ORDER_SUCCESS or ORDER_FAILED:
+                → return final_answer EXACTLY
+                
+                ========================
+                TOOLS
+                ========================
+                search_products(query)
+                create_order(productId, quantity)
+                
+                ========================
+                OUTPUT FORMAT
+                ========================
+                {
+                  "tool": "...",
+                  "input": ...
+                }
+                """;
 
-Your goal is to complete the user's request step by step using tools when needed.
-
-At each step:
-- Decide which tool to use
-- OR return final_answer if the task is complete
-
-========================
-CRITICAL RULES (READ CAREFULLY)
-========================
-
-1. ALWAYS stop when you have enough information to answer the user.
-
-2. If the last observation already contains the answer → return final_answer.
-
-3. DO NOT call the same tool repeatedly with the same input.
-
-4. DO NOT loop.
-
-5. Use tools ONLY when necessary.
-
-========================
-TOOLS
-========================
-
-1. search_products(query: string)
-   - Use when you need product details like id, price, stock
-
-2. create_order(productId: string, quantity: number)
-   - Use ONLY when you already have productId
-
-========================
-WHEN TO STOP
-========================
-
-- If user asked to SEARCH (e.g., "show iphone"):
-  → Call search_products ONCE
-  → Then return final_answer with the results
-
-- If user asked to ORDER:
-  → First get productId using search_products
-  → Then call create_order
-  → After success or failure → return final_answer
-
-========================
-OUTPUT FORMAT (STRICT JSON ONLY)
-========================
-
-Tool call:
-{
-  "tool": "tool_name",
-  "input": ...
-}
-
-Final answer:
-{
-  "tool": "final_answer",
-  "input": "your response"
-}
-
-========================
-IMPORTANT BEHAVIOR
-========================
-
-- NEVER return text outside JSON
-- NEVER explain your reasoning
-- NEVER repeat tool calls unnecessarily
-- ALWAYS finish the task as soon as possible
-
-========================
-EXAMPLES
-========================
-
-User: show iphone
-
-Step 1:
-{"tool":"search_products","input":"iphone"}
-
-Step 2:
-{"tool":"final_answer","input":"<products result>"}
-
-
-User: order iphone
-
-Step 1:
-{"tool":"search_products","input":"iphone"}
-
-Step 2:
-{"tool":"create_order","input":{"productId":"uuid","quantity":1}}
-
-Step 3:
-{"tool":"final_answer","input":"Order created successfully"}
-
-========================
-FINAL ANSWER RULE (CRITICAL)
-========================
-
-- When returning final_answer after a tool execution:
-  → ALWAYS return the EXACT observation
-  → DO NOT summarize
-  → DO NOT modify
-  → DO NOT remove details
-
-Example:
-
-Observation:
-ORDER_SUCCESS: orderId=123, total=50000
-
-Final Answer:
-{
-  "tool": "final_answer",
-  "input": "ORDER_SUCCESS: orderId=123, total=50000"
-}
-""";
         String userMessage = """
-                Context:
+                USER_INPUT:
                 %s
-
-                Last Observation:
+                
+                OBSERVATION:
                 %s
                 """.formatted(context, observation == null ? "" : observation);
 
         return callLLM(systemPrompt, userMessage);
     }
 
-    // 🔹 SHARED CALL METHOD
     private String callLLM(String systemPrompt, String userMessage) {
 
         Map<String, Object> requestBody = Map.of(
@@ -156,7 +89,9 @@ Final Answer:
                 "messages", List.of(
                         Map.of("role", "system", "content", systemPrompt),
                         Map.of("role", "user", "content", userMessage)
-                )
+                ),
+                "temperature", 0,
+                "max_tokens", 150
         );
 
         HttpHeaders headers = new HttpHeaders();
@@ -175,14 +110,9 @@ Final Answer:
 
         System.out.println("[LLM RAW] " + content);
 
-        String json = extractJson(content);
-
-        System.out.println("[LLM JSON] " + json);
-
-        return json;
+        return extractJson(content);
     }
 
-    // 🔥 CRITICAL SAFETY
     private String extractJson(String response) {
         if (response == null) return "{}";
 
