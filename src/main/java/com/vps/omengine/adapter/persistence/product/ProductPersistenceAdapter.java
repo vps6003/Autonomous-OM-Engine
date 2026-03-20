@@ -57,9 +57,9 @@ public  class ProductPersistenceAdapter implements ProductRepository {
 
     @Override
     public List<Product> searchByName(String name) {
-
+        String query = name.toLowerCase().trim();
         return springDataproductRepository
-                .findByProductNameContainingIgnoreCase(name)
+                .searchFlexible(query)
                 .stream()
                 .map(ProductMapper::toDomain)
                 .toList();
