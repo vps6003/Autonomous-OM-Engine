@@ -12,8 +12,9 @@ public interface SpringDataProductRepository extends JpaRepository<ProductJpaEnt
     List<ProductJpaEntity> findByProductNameContainingIgnoreCase(String name);
 
     @Query("""
-    SELECT p FROM ProductJpaEntity p
-    WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :query, '%'))
-""")
+            SELECT p FROM ProductJpaEntity p
+            WHERE LOWER(p.productName) LIKE LOWER(CONCAT('%', :query, '%'))
+            ORDER BY LENGTH(p.productName)
+            """)
     List<ProductJpaEntity> searchFlexible(@Param("query") String query);
 }

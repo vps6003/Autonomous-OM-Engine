@@ -13,10 +13,10 @@ public class AgentController {
 
     private final AgentOrchestrator agentOrchestrator;
 
-    @PostMapping("/order")
-    public ResponseEntity<String> process(@RequestBody AgentRequest request) {
+    @PostMapping("/au_agent")
+    public ResponseEntity<?> process(@RequestBody AgentRequest request) {
 
-        String result = agentOrchestrator.process(request.input());
+        Object result = agentOrchestrator.process(request.input());
         return ResponseEntity.ok(result);
     }
 }
